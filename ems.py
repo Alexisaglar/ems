@@ -19,28 +19,28 @@ def data_normalization(irradiance_data):
     # Normalize the data from PD
     data_min = irradiance_data['GHI'].min()
     data_max = irradiance_data['GHI'].max()
-    normalized_data = (irradiance_data - data_min) / (data_max - data_min)
+    normalized_data = ((irradiance_data - data_min) / (data_max - data_min))/1000
     return normalized_data
 
 def beta_alpha_stimation(data_mean, data_std):
-    for i, _ in enumerate(data_mean):
-        if data_std.iloc[i] > 0:
-            beta_values['b'].iloc[i] = (1 - data_mean.iloc[i]) * ((data_mean.iloc[i] * (1 + data_mean.iloc[i])) / (data_std.iloc[i]**2) - 1)
-            beta_values['a'].iloc[i] = (data_mean.iloc[i] * beta_values['b'].iloc[i]) / (1 - data_mean.iloc[i])
-        else:
-            beta_values['b'].iloc[i] = 0
-            beta_values['a'].iloc[i] = 0
+    beta_values = pd.DataFrame(index=data_mean.index, columns=['a','b'])
+    valid_mask = data_std > 0
+    beta_values.loc[valid_mask, 'b'] = (1 - data_mean[valid_mask]) * (((data_mean[valid_mask] * (1 + data_mean[valid_mask])) / (data_std[valid_mask]**2)) - 1)
+    beta_values.loc[valid_mask, 'a'] = (data_mean[valid_mask] * beta_values['b'][valid_mask]) / (1 - data_mean[valid_mask])
+    beta_values.loc[~valid_mask, ['a', 'b']] = 0
     return beta_values
 
 def beta_PDF_function(beta_values, day, time):
     position = ((day - 1) * 24) + time
-    s = np.random.rand()
-    value = (sp.gamma(beta_values['a'].iloc[position] + beta_values['b'].iloc[position]) / (sp.gamma(beta_values['a'].iloc[position]) * sp.gamma(beta_values['b'].iloc[position])) ) * s * (1-s)**(beta_values['b'].iloc[position] - 1)
-    return value
+    s = 0.2
+    alpha = beta_values['a'].iloc[position]
+    beta = beta_values['b'].iloc[position]
+    beta_function_value = sp.beta(alpha, beta)
+    pdf_value = (s ** (alpha - 1)) * ((1-s) ** (beta - 1)) / beta_function_value
+    return pdf_value
 
 # Read data and clean data
 historical_irradiance = read_data(data_file)
-beta_values = pd.DataFrame(np.nan, index=range(len(historical_irradiance)),columns=['a','b'])
 
 # Normalize data
 normalized_irradiance = data_normalization(historical_irradiance)
@@ -53,8 +53,6 @@ beta_values = beta_alpha_stimation(data_mean, data_std)
 beta_values.to_csv('data/beta_values.csv')
 
 # Beta PDF equation calculation
-day = 15
-time = 10 # in 24 hours format
-irradiance_prediction = beta_PDF_function(beta_values, day, time)
+irradiance_prediction = beta_PDF_function(beta_values, day=15, time=12)
 print(irradiance_prediction)
 
