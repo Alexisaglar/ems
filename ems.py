@@ -19,7 +19,7 @@ def data_normalization(irradiance_data):
     # Normalize the data from PD
     data_min = irradiance_data['GHI'].min()
     data_max = irradiance_data['GHI'].max()
-    normalized_data = ((irradiance_data - data_min) / (data_max - data_min))/1000
+    normalized_data = ((irradiance_data - data_min) / (data_max - data_min))
     return normalized_data
 
 def beta_alpha_stimation(data_mean, data_std):
@@ -32,7 +32,7 @@ def beta_alpha_stimation(data_mean, data_std):
 
 def beta_PDF_function(beta_values, day, time):
     position = ((day - 1) * 24) + time
-    s = 0.2
+    s = 0.4
     alpha = beta_values['a'].iloc[position]
     beta = beta_values['b'].iloc[position]
     beta_function_value = sp.beta(alpha, beta)
